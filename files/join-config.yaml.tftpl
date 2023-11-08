@@ -1,0 +1,20 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+nodeRegistration:
+  taints: []
+  kubeletExtraArgs:
+    node-ip: ${node_ip}
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: ${api_server_endpoint}
+    token: ${token}
+    caCertHashes:
+      - "${ca_cert_hash}"
+  tlsBootstrapToken: ${token}
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+serverTLSBootstrap: true
+rotateCertificates: true
+cgroupDriver: systemd
+resolvConf: /etc/kubernetes/resolv.conf

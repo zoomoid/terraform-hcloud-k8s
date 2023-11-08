@@ -1,0 +1,21 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: google-trust-services-http01
+  namespace: cert-manager
+spec:
+  acme:
+    email: ${google_cloud_platform_email}
+    server: https://dv.acme-v02.api.pki.goog/directory
+    externalAccountBinding:
+      keyID: ${key_id}
+      keySecretRef:
+        name: google-cloud-platform-eab
+        key: eab-hmac-key
+    privateKeySecretRef:
+      name: google-trust-services-http01
+    solvers:
+    - selector: {}
+      http01:
+        ingress:
+          ingressClassName: ${ingress_class_name}

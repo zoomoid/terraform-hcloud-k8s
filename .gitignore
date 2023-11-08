@@ -1,0 +1,6 @@
+.terraform/
+.terraform.lock.hcl
+*_kube_apiserver_ca_cert_hash
+token.tfvars
+kubeconfig.yaml
+id_rsa*

@@ -1,0 +1,33 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+controlPlaneEndpoint: ${control_plane_endpoint}
+apiServer:
+  certSANs:
+%{ for addr in extra_sans ~}
+    - ${addr}
+%{ endfor ~}
+networking:
+  podSubnet: ${pod_subnet}
+  serviceSubnet: ${service_subnet}
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+certificateKey: "${certificate_key}"
+localAPIEndpoint:
+  advertiseAddress: "${advertise_address}"
+  bindPort: 6443
+bootstrapTokens:
+  - token: ${token}
+nodeRegistration:
+  taints: []
+  kubeletExtraArgs:
+    node-ip: ${node_ip}
+skipPhases:
+  - addon/kube-proxy
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+serverTLSBootstrap: true
+rotateCertificates: true
+cgroupDriver: systemd
+resolvConf: /etc/kubernetes/resolv.conf

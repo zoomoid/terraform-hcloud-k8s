@@ -1,0 +1,15 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: node-ip-pool
+  namespace: metallb-system
+spec:
+  addresses:
+%{ for addr in node_ipv4_addresses ~}
+    - ${addr}
+%{ endfor ~}
+%{ for addr in node_ipv6_addresses ~}
+    - ${addr}
+%{ endfor ~}
+  avoidBuggyIPs: true
+  autoAssign: true

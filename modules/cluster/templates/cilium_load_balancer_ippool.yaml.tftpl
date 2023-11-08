@@ -1,0 +1,12 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: node-ip-pool
+spec:
+  cidrs:
+%{ for addr in node_ipv4_addresses ~}
+    - cidr: ${addr}
+%{ endfor ~}
+%{ for addr in node_ipv6_addresses ~}
+    - cidr: ${addr}
+%{ endfor ~}
