@@ -23,6 +23,9 @@ module "workers" {
   cloudinit_kubernetes_apt_keyring         = var.cloudinit_kubernetes_apt_keyring
   cloudinit_kubernetes_version             = var.cloudinit_kubernetes_version
 
+  ssh_user             = var.ssh_user
+  ssh_private_key_file = var.ssh_private_key_file
+
   ssh_keys = [
     hcloud_ssh_key.default.id
   ]
@@ -45,26 +48,6 @@ resource "null_resource" "kubeadm_join" {
     timeout     = "30s"
     private_key = file(var.ssh_private_key_file)
   }
-
-  provisioner "remote-exec" {
-    inline = [
-      "cloud-init status --wait"
-    ]
-  }
-
-  # Reboot node once to apply new kernel version.
-  # Uses the Node's public IP addresses directly instead of DNS names
-  provisioner "local-exec" {
-    command = <<-EOT
-      ssh -i ${var.ssh_private_key_file} -o StrictHostKeyChecking=no ${var.ssh_user}@${each.value.ipv4_address} '(sleep 2; reboot)&'; sleep 3
-      until ssh -i ${var.ssh_private_key_file} -o StrictHostKeyChecking=no -o ConnectTimeout=2 ${var.ssh_user}@${each.value.ipv4_address} true 2> /dev/null
-      do
-        echo "Waiting for ${each.value.ipv4_address} to reboot and become available..."
-        sleep 3
-      done
-    EOT
-  }
-
 
   # create join configuration
   provisioner "file" {

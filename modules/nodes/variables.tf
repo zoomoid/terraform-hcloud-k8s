@@ -35,11 +35,6 @@ variable "ipv4_subnet_id" {
   type = string
 }
 
-variable "ssh_private_key_path" {
-  type    = string
-  default = "~/.ssh/id_rsa"
-}
-
 variable "cloudinit_linux_kernel_package" {
   type = string
   default = "linux-kernel-6.2.0-32-generic"
@@ -78,5 +73,18 @@ variable "cloudinit_kubernetes_apt_keyring" {
 
 variable "cloudinit_kubernetes_version" {
   type = string
-  description = "Kubernetes version to install via apt of the form <X.Y.Z>. The mandatory -00 is automatically added"
+  description = "Kubernetes version to install via apt"
+}
+
+variable "ssh_user" {
+  description = "SSH user. Required for kernel bootstrapping after cloud init"
+  type        = string
+  default     = "root"
+  sensitive   = true
+}
+
+variable "ssh_private_key_file" {
+  description = "SSH private key file path. Required for kernel bootstrapping after cloud init"
+  type        = string
+  sensitive   = true
 }

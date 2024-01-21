@@ -80,7 +80,6 @@ resource "random_string" "cluster_token_suffix" {
   special = false
 }
 
-resource "random_string" "cluster_certificate_key" {
-  length  = 24
-  special = false
+resource "random_bytes" "cluster_certificate_key" {
+  length = 32
 }

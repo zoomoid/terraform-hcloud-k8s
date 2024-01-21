@@ -14,17 +14,17 @@ resource "helm_release" "cilium" {
   // otherwise terraform gets stuck 
   wait = true
 
-  values = [  ]
+  values = [ var.cilium_values ]
 
   # kube-proxy replacement
-  set {
+ set {
     name  = "k8sServiceHost"
-    value = var.cluster_endpoint
+    value = var.external_kubernetes_service_host
   }
 
   set {
     name  = "k8sServicePort"
-    value = 6443
+    value = var.external_kubernetes_service_port
   }
 
 }

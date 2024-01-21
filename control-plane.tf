@@ -24,26 +24,46 @@ module "control_plane" {
   cloudinit_kubernetes_apt_keyring         = var.cloudinit_kubernetes_apt_keyring
   cloudinit_kubernetes_version             = var.cloudinit_kubernetes_version
 
+  ssh_user             = var.ssh_user
+  ssh_private_key_file = var.ssh_private_key_file
+
   ssh_keys = [
     hcloud_ssh_key.default.id
   ]
 }
 
-locals {
-  kubeadm_init_node = module.control_plane
+output "control_plane" {
+  value = module.control_plane
 }
 
-resource "null_resource" "kubeadm_init" {
-  for_each = toset([for n in module.control_plane : n if n.name == var.primary_control_plane_node])
+locals {
+  kubeadm_init_node = module.control_plane[var.primary_control_plane_node]
 
+  ca_cert_hash = data.remote_file.ca_cert_hash.content
+}
+
+
+resource "null_resource" "kubeadm_init" {
   depends_on = [
     module.control_plane,
     module.dns,
   ]
 
+  # TODO: this is currently wrong! We cannot call kubeadm init on *all* control plane nodes but 
+  # rather have to stick to just one! Previous attempts to isolate those cases lead to the commented-out line below
+  # which causes terraform to fail due to not knowing all required properties during the "list comprehension"
+  # If we explicitly define the type *somehow* marking node_name to be available regardless of the state,
+  # this *could* work, but as we currently only deploy one control plane node anyways, the bootstrapping works with the previous
+  # node as well
+
+  # for_each = toset([for n in module.control_plane : n if n.name == var.primary_control_plane_node])
+
+  # This is the old version
+  for_each = module.control_plane
+
   connection {
     type        = "ssh"
-    host        = each.value.ipv4_address
+    host        = local.kubeadm_init_node.ipv4_address
     user        = var.ssh_user
     timeout     = "30s"
     private_key = file(var.ssh_private_key_file)
@@ -63,34 +83,17 @@ resource "null_resource" "kubeadm_init" {
       service_subnet    = "10.96.0.0/16,fd00:0:0:100::/112" # The latter IPv6 cidrs are NOT routable for cilium native routing!
       advertise_address = each.value.ipv4_address
       token             = format("%s.%s", random_string.cluster_token_prefix.result, random_string.cluster_token_suffix.result)
-      node_ip           = join(",", [each.value.private_ipv4_address, each.value.ipv6_address])
+      node_ip           = join(",", [each.value.private_ipv4_address, each.value.ipv6_address]),
+      certificate_key   = random_bytes.cluster_certificate_key.hex
     })
-    destination = "/root/config.yaml"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "cloud-init status --wait"
-    ]
-  }
-
-  # Reboot node once to apply new kernel version.
-  # Uses the node's public IP address directly
-  provisioner "local-exec" {
-    command = <<-EOT
-      ssh -i ${var.ssh_private_key_file} -o StrictHostKeyChecking=no ${var.ssh_user}@${each.value.ipv4_address} '(sleep 2; reboot)&'; sleep 3
-      until ssh -i ${var.ssh_private_key_file} -o StrictHostKeyChecking=no -o ConnectTimeout=2 ${var.ssh_user}@${each.value.ipv4_address} true 2> /dev/null
-      do
-        echo "Waiting for ${each.value.ipv4_address} to reboot and become available..."
-        sleep 3
-      done
-    EOT
+    destination = "/root/init-config.yaml"
   }
 
   # kubeadm init/join
+  # This is a dirty hack to circumvent the restrictions to for_each sets described above.
   provisioner "remote-exec" {
     inline = [
-      each.key == var.primary_control_plane_node ? "kubeadm init --config /root/config.yaml" : "kubeadm join --config /root/config.yaml"
+      each.key == var.primary_control_plane_node ? "kubeadm init --config /root/init-config.yaml" : "echo 'nothing to do, node is not control plane leader, waiting for join stage later'"
     ]
   }
 
@@ -106,8 +109,7 @@ resource "null_resource" "kubeadm_init" {
   # Allow control plane kubelet to schedule pods
   provisioner "remote-exec" {
     inline = [
-      "export KUBECONFIG=/etc/kubernetes/admin.conf",
-      "kubectl taint node ${var.primary_control_plane_node} node-role.kubernetes.io/control-plane:NoSchedule-"
+      "KUBECONFIG=/etc/kubernetes/super-admin.conf kubectl taint node ${var.primary_control_plane_node} node-role.kubernetes.io/control-plane:NoSchedule- || echo 'no taint for control plane found, skipping'"
     ]
   }
 
@@ -121,6 +123,7 @@ resource "null_resource" "kubeadm_init" {
 
 # Copy CA cert hash for joining new nodes
 data "remote_file" "ca_cert_hash" {
+
   depends_on = [
     null_resource.kubeadm_init
   ]
@@ -135,10 +138,6 @@ data "remote_file" "ca_cert_hash" {
   path = "/root/.ca_cert_hash"
 }
 
-locals {
-  ca_cert_hash = data.remote_file.ca_cert_hash.content
-}
-
 resource "local_sensitive_file" "ca_cert_hash" {
   depends_on = [
     data.remote_file.ca_cert_hash
@@ -149,8 +148,9 @@ resource "local_sensitive_file" "ca_cert_hash" {
   file_permission = "600"
 }
 
+
 resource "null_resource" "kubeadm_join_control_plane" {
-  for_each = toset([for n in module.control_plane : n if n.name != var.primary_control_plane_node])
+  for_each = module.control_plane
 
   depends_on = [
     module.control_plane,
@@ -174,37 +174,15 @@ resource "null_resource" "kubeadm_join_control_plane" {
       api_server_endpoint = local.cluster_endpoint,
       token               = format("%s.%s", random_string.cluster_token_prefix.result, random_string.cluster_token_suffix.result),
       ca_cert_hash        = format("sha256:%s", trimspace(local.ca_cert_hash))
-      certificate_key     = random_string.cluster_certificate_key.result,
+      certificate_key     = random_bytes.cluster_certificate_key.hex,
       advertise_address   = each.value.ipv4_address,
     })
-    destination = "/root/config.yaml"
+    destination = "/root/join-config.yaml"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "cloud-init status --wait"
-    ]
-  }
-
-  # Reboot node once to apply new kernel version.
-  # Uses the node's public IP address directly
-  provisioner "local-exec" {
-    command = <<-EOT
-      ssh -i ${var.ssh_private_key_file} -o StrictHostKeyChecking=no ${var.ssh_user}@${each.value.ipv4_address} '(sleep 2; reboot)&'; sleep 3
-      until ssh -i ${var.ssh_private_key_file} -o StrictHostKeyChecking=no -o ConnectTimeout=2 ${var.ssh_user}@${each.value.ipv4_address} true 2> /dev/null
-      do
-        echo "Waiting for ${each.value.ipv4_address} to reboot and become available..."
-        sleep 3
-      done
-    EOT
-  }
-
-  # configure kubeconfig on remote
-  provisioner "remote-exec" {
-    inline = [
-      "mkdir -p $HOME/.kube",
-      "sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config",
-      "sudo chown $(id -u):$(id -g) $HOME/.kube/config"
+      each.key == var.primary_control_plane_node ? "echo 'nothing to do, node is control plane leader'" : "kubeadm join --config /root/join-config.yaml"
     ]
   }
 }

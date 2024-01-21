@@ -11,5 +11,5 @@ spec:
 %{ for addr in node_ipv6_addresses ~}
     - ${addr}
 %{ endfor ~}
-  avoidBuggyIPs: true
+  avoidBuggyIPs: false
   autoAssign: true

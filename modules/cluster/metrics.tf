@@ -7,6 +7,8 @@ resource "helm_release" "metrics-server" {
     helm_release.cilium,
   ]
 
+  version = "3.11.0"
+
   wait = false
 
   repository = "https://kubernetes-sigs.github.io/metrics-server/"

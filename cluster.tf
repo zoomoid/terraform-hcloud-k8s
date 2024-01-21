@@ -6,6 +6,9 @@ module "cluster" {
   source = "./modules/cluster"
 
   cluster_endpoint = local.cluster_endpoint
+  
+  external_kubernetes_service_host = format("%s.%s", var.dns_cluster_subdomain, var.dns_root)
+  external_kubernetes_service_port = var.control_plane_api_server_port
 
   node_ipv4_addresses = local.node_ipv4_addresses
   node_ipv6_addresses = local.node_ipv6_addresses

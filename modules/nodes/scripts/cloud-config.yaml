@@ -3,7 +3,9 @@ runcmd:
   # update apt sources at boot time before main cloud-init script
   - DEBIAN_FRONTEND=noninteractive apt-get -yq update
   # install REALLY necessary packages
-  - DEBIAN_FRONTEND=noninteractive apt-get -yq install --install-recommends gnupg ca-certificates ${linux_kernel_package} wireguard
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq install --install-recommends gnupg ca-certificates 
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq install ${linux_kernel_package}
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq install wireguard
   # enable kubernetes networking kernel modules
   - modprobe -a overlay br_netfilter ip_tables ip6_tables
   # reload kernel parameters
@@ -30,7 +32,7 @@ runcmd:
   # add apt sources for kubernetes binaries
   - echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] ${kubernetes_apt_keyring}/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
   - apt-get update -y
-  - apt-get install -y kubelet=${kubernetes_version}-00 kubeadm${kubernetes_version}-00 kubectl${kubernetes_version}-00
+  - apt-get install -y kubelet=${kubernetes_version} kubeadm=${kubernetes_version} kubectl=${kubernetes_version}
   - apt-mark hold kubelet kubeadm kubectl
 package_update: true
 package_upgrade: true

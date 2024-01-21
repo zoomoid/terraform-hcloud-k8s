@@ -1,6 +1,16 @@
 variable "cluster_endpoint" {
   type        = string
+  description = "Endpoint at which the control plane is located. Contains both hostname and port"
+}
+
+variable "external_kubernetes_service_host" {
+  type        = string
   description = "Hostname at which the control plane is located"
+}
+
+variable "external_kubernetes_service_port" {
+  type        = number
+  description = "Port at which the control plane is located"
 }
 
 variable "node_ipv4_addresses" {
@@ -79,8 +89,8 @@ variable "enable_cert_manager_csi_driver" {
 }
 
 variable "cert_manager_http01_ingress_class_name" {
-  type = string
-  default = "traefik"
+  type        = string
+  default     = "traefik"
   description = "Ingress class to use for HTTP01 issuers temporary ingress resources"
 }
 
@@ -136,9 +146,9 @@ variable "google_cloud_platform_eab_hmac_key" {
 }
 
 variable "google_cloud_platform_email" {
-  sensitive = true
-  type = string
-  default = ""
+  sensitive   = true
+  type        = string
+  default     = ""
   description = "Email address to use for Google Trust Services"
 }
 
@@ -188,7 +198,7 @@ variable "enable_local_path_provisioner" {
 
 variable "enable_gateway_api" {
   type        = bool
-  default     = true
+  default     = false
   description = "Enables deploying Kubernetes' SIG Networking's Gateway API CRDs and webhook"
 }
 

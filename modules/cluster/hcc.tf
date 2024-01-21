@@ -106,7 +106,7 @@ resource "kubernetes_deployment_v1" "hcloud_cloud_controller_manager" {
         host_network = true
         container {
           name  = "hcloud-cloud-controller-manager"
-          image = "hetznercloud/hcloud-cloud-controller-manager:v1.18.0"
+          image = "hetznercloud/hcloud-cloud-controller-manager:v1.19.0"
           command = concat([
             "/bin/hcloud-cloud-controller-manager",
             "--cloud-provider=hcloud",
