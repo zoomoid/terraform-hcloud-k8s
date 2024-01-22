@@ -119,6 +119,24 @@ ssh_private_key_path = "..."
 ssh_public_key_path  = "..."
 ```
 
+Option B is to use this template as a module. This module is published in the Terraform Registry at <https://registry.terraform.io/modules/zoomoid/k8s/hcloud/latest>.
+You can use it as described there, by including
+
+```terraform
+# main.tf
+
+module "k8s" {
+  source  = "zoomoid/k8s/hcloud"
+  version = "1.0.0"
+  # insert the 12 required variables here
+}
+```
+
+in your local terraform module. Instead of providing all variables at top-level like with a private `.tfvars` file, you add another indirection layer by providing
+the module with the required variables, which will likely again come from a `.tfvars` file. *This should work out of the box, though it is currently not tested by me.*
+
+
+
 ### Nodes Section
 
 Configure node pools and cloudinit parameters. We also require *a single control plane node* to be defined as the leader of a possible HA control plane. Only one node must run `kubeadm init` (defined as `primary_control_plane_node`), while all others run some form
